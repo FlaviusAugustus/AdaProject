@@ -14,8 +14,6 @@ package body Tasks is
       Consumption: Integer;
       Assembly_Type: Integer;
       DidDeliver: Boolean;
-      Consumer_Name: constant array (1 .. Number_Of_Consumers)
-	   of String(1 .. 9) := ("Consumer1", "Consumer2");
    begin
       accept Start(Consumer_Number: in Consumer_Type;
 		 Consumption_Time: in Integer) do
@@ -24,7 +22,7 @@ package body Tasks is
          Consumer_Nb := Consumer_Number;
 	     Consumption := Consumption_Time;
       end Start;
-      Put_Line("Started consumer " & Consumer_Name(Consumer_Nb));
+      Put_Line("Started consumer " & Consumers'val(Consumer_Nb)'Image);
       loop
          delay Duration(Random_Consumption.Random(G)); --  simulate consumption
          Assembly_Type := Random_Assembly.Random(G2);
@@ -32,8 +30,8 @@ package body Tasks is
             select
                Buffer.Deliver(Assembly_Type, Assembly_Number, DidDeliver);
                if DidDeliver then
-                  Put_Line(Consumer_Name(Consumer_Nb) & ": taken assembly " &
-                     Assembly_Name(Assembly_Type) & " number " &
+                  Put_Line(Consumers'val(Consumer_Nb)'Image & ": taken assembly " &
+                     Assemblies'val(Assembly_Number)'Image & " number " &
                      Integer'Image(Assembly_Number));
                   exit;
                end if;
@@ -61,17 +59,17 @@ package body Tasks is
             Product_Type_Number := Product;
             Production := Production_Time;
         end Start;
-      Put_Line("Started producer of " & Product_Name(Product_Type_Number));
+      Put_Line("Started producer of " & Products'val(Product_Type_Number)'Image);
       loop
          delay Duration(Random_Production.Random(G)); --  symuluj produkcję
-         Put_Line("Produced product " & Product_Name(Product_Type_Number)
+         Put_Line("Produced product " & Products'val(Product_Type_Number)'Image
 		    & " number "  & Integer'Image(Product_Number));
          -- Accept for storage
          loop
             select
                Buffer.Take(Product_Type_Number, Product_Number, CanTake);
                if CanTake then
-                  Put_Line("Product " & Product_Name(Product_Type_Number) & " was sent to the buffer");
+                  Put_Line("Product " & Products'val(Product_Type_Number)'Image & " was sent to the buffer");
                   exit;
                end if;
             or
@@ -165,7 +163,7 @@ package body Tasks is
       begin
          for W in Product_Type loop
             Put_Line("Storage contents: " & Integer'Image(Storage(W)) & " "
-                   & Product_Name(W));
+                   & Products'val(W)'Image);
          end loop;
       end Storage_Contents;
 
@@ -175,13 +173,13 @@ package body Tasks is
       loop
 	 accept Take(Product: in Product_Type; Number: in Integer;  CanTake: out Boolean) do
 	   if Can_Accept(Product) then
-	      Put_Line("Accepted product " & Product_Name(Product) & " number " &
+	      Put_Line("Accepted product " & Products'val(Product)'Image & " number " &
 		Integer'Image(Number));
 	      Storage(Product) := Storage(Product) + 1;
             In_Storage := In_Storage + 1;
             CanTake := true;  
   	   else
-	      Put_Line("Rejected product " & Product_Name(Product) & " number " & Integer'Image(Number));
+	      Put_Line("Rejected product " & Products'val(Product)'Image & " number " & Integer'Image(Number));
           FailedDelivers := FailedDelivers + 1;
           CanTake := false;
           if FailedDelivers > 5 then
@@ -198,7 +196,7 @@ package body Tasks is
 	 Storage_Contents;
 	 accept Deliver(Assembly: in Assembly_Type; Number: out Integer; DidDeliver: out Boolean) do
 	    if Can_Deliver(Assembly) then
-	       Put_Line("Delivered assembly " & Assembly_Name(Assembly) & " number " &
+	       Put_Line("Delivered assembly " & Assemblies'val(Assembly)'Image & " number " &
 			  Integer'Image(Assembly_Number(Assembly)));
 	       for W in Product_Type loop
 		  Storage(W) := Storage(W) - Assembly_Content(Assembly, W);
@@ -208,7 +206,7 @@ package body Tasks is
              Assembly_Number(Assembly) := Assembly_Number(Assembly) + 1;
              DidDeliver := true; 
 	    else
-	       Put_Line("Lacking products for assembly " & Assembly_Name(Assembly));
+	       Put_Line("Lacking products for assembly " & Assemblies'val(Assembly)'Image);
            DIdDeliver := false;
 	    end if;
 	 end Deliver;
