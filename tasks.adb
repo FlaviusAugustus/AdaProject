@@ -4,7 +4,7 @@ package body Tasks is
      Ada.Numerics.Discrete_Random(Assembly_Type);
 
    task body Consumer is
-      subtype Consumption_Time_Range is Integer range 4 .. 8;
+      subtype Consumption_Time_Range is Integer range 13 .. 15;
       package Random_Consumption is new
     	Ada.Numerics.Discrete_Random(Consumption_Time_Range);
       G: Random_Consumption.Generator;	--  random number generator (time)
@@ -13,6 +13,7 @@ package body Tasks is
       Assembly_Number: Integer;
       Consumption: Integer;
       Assembly_Type: Integer;
+      Attention_Span: Integer;
       DidDeliver: Boolean;
    begin
       accept Start(Consumer_Number: in Consumer_Type;
@@ -21,12 +22,18 @@ package body Tasks is
          Random_Assembly.Reset(G2);	--  też
          Consumer_Nb := Consumer_Number;
 	     Consumption := Consumption_Time;
+         Attention_Span := 5;
       end Start;
       Put_Line("Started consumer " & Consumers'val(Consumer_Nb)'Image);
       loop
          delay Duration(Random_Consumption.Random(G)); --  simulate consumption
          Assembly_Type := Random_Assembly.Random(G2);
          loop
+            if Attention_Span <= 0 then
+                Put_Line("Consumer" & Consumers'val(Consumer_Nb)'Image & " changed their mind" );
+                Attention_Span := 5;
+                exit;
+            end if;
             select
                Buffer.Deliver(Assembly_Type, Assembly_Number, DidDeliver);
                if DidDeliver then
@@ -36,9 +43,10 @@ package body Tasks is
                   exit;
                end if;
              or
-               delay Duration(5.0);
+               delay Duration(Random_Consumption.Random(G));
              end select;
             Put_Line("Cant deliver, waiting");
+            Attention_Span := Attention_Span - 1;
          end loop;
       end loop;
    end Consumer;
@@ -73,7 +81,7 @@ package body Tasks is
                   exit;
                end if;
             or
-               delay Duration(5.0);
+               delay Duration(8.0);
             end select;
             Put_Line("Cant send product to storage, waiting.");
         end loop;
@@ -89,7 +97,7 @@ package body Tasks is
       Assembly_Content: array(Assembly_Type, Product_Type) of Integer
 	:= ((1, 2, 1, 4, 1),
 	    (1, 1, 1, 2, 1),
-	    (1, 2, 1, 3, 1));
+	    (1, 2, 2, 2, 1));
       Max_Assembly_Content: array(Product_Type) of Integer;
       Assembly_Number: array(Assembly_Type) of Integer
 	:= (1, 1, 1);
@@ -173,17 +181,17 @@ package body Tasks is
       loop
 	 accept Take(Product: in Product_Type; Number: in Integer;  CanTake: out Boolean) do
 	   if Can_Accept(Product) then
-	      Put_Line("Accepted product " & Products'val(Product)'Image & " number " &
-		Integer'Image(Number));
+	      Put_Line("Accepted product " & Products'val(Product)'Image & " number " & Integer'Image(Number));
 	      Storage(Product) := Storage(Product) + 1;
-            In_Storage := In_Storage + 1;
-            CanTake := true;  
+          In_Storage := In_Storage + 1;
+          CanTake := true;  
   	   else
 	      Put_Line("Rejected product " & Products'val(Product)'Image & " number " & Integer'Image(Number));
           FailedDelivers := FailedDelivers + 1;
           CanTake := false;
           if FailedDelivers > 5 then
             In_Storage := 0;
+            CanTake := true;
             FailedDelivers := 0;
             Put_Line("Too many lost deliveries! Half of the storage was lost!");
             for W in Product_Type loop
@@ -199,12 +207,12 @@ package body Tasks is
 	       Put_Line("Delivered assembly " & Assemblies'val(Assembly)'Image & " number " &
 			  Integer'Image(Assembly_Number(Assembly)));
 	       for W in Product_Type loop
-		  Storage(W) := Storage(W) - Assembly_Content(Assembly, W);
-		  In_Storage := In_Storage - Assembly_Content(Assembly, W);
+              Storage(W) := Storage(W) - Assembly_Content(Assembly, W);
+              In_Storage := In_Storage - Assembly_Content(Assembly, W);
 	       end loop;
 	       Number := Assembly_Number(Assembly);
-             Assembly_Number(Assembly) := Assembly_Number(Assembly) + 1;
-             DidDeliver := true; 
+           Assembly_Number(Assembly) := Assembly_Number(Assembly) + 1;
+           DidDeliver := true; 
 	    else
 	       Put_Line("Lacking products for assembly " & Assemblies'val(Assembly)'Image);
            DIdDeliver := false;
