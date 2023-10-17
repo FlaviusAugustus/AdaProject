@@ -4,7 +4,7 @@ package body Tasks is
      Ada.Numerics.Discrete_Random(Assembly_Type);
 
    task body Consumer is
-      subtype Consumption_Time_Range is Integer range 13 .. 15;
+      subtype Consumption_Time_Range is Integer range 4 .. 8;
       package Random_Consumption is new
     	Ada.Numerics.Discrete_Random(Consumption_Time_Range);
       G: Random_Consumption.Generator;	--  random number generator (time)
@@ -13,7 +13,6 @@ package body Tasks is
       Assembly_Number: Integer;
       Consumption: Integer;
       Assembly_Type: Integer;
-      Attention_Span: Integer;
       DidDeliver: Boolean;
    begin
       accept Start(Consumer_Number: in Consumer_Type;
@@ -22,32 +21,20 @@ package body Tasks is
          Random_Assembly.Reset(G2);	--  też
          Consumer_Nb := Consumer_Number;
 	     Consumption := Consumption_Time;
-         Attention_Span := 5;
       end Start;
       Put_Line("Started consumer " & Consumers'val(Consumer_Nb)'Image);
       loop
          delay Duration(Random_Consumption.Random(G)); --  simulate consumption
          Assembly_Type := Random_Assembly.Random(G2);
-         loop
-            if Attention_Span <= 0 then
-                Put_Line("Consumer" & Consumers'val(Consumer_Nb)'Image & " changed their mind" );
-                Attention_Span := 5;
-                exit;
+         select
+            Buffer.Deliver(Assembly_Type, Assembly_Number, DidDeliver);
+            if DIdDeliver then
+                Put_Line("Consumer " & Consumers'val(Consumer_Nb)'Image & " has recieved their " & Assemblies'val(Assembly_Type)'Image & " number " & Assembly_Number'Image);
             end if;
-            select
-               Buffer.Deliver(Assembly_Type, Assembly_Number, DidDeliver);
-               if DidDeliver then
-                  Put_Line(Consumers'val(Consumer_Nb)'Image & ": taken assembly " &
-                     Assemblies'val(Assembly_Number)'Image & " number " &
-                     Integer'Image(Assembly_Number));
-                  exit;
-               end if;
-             or
-               delay Duration(Random_Consumption.Random(G));
-             end select;
-            Put_Line("Cant deliver, waiting");
-            Attention_Span := Attention_Span - 1;
-         end loop;
+        or
+            delay Duration(5.0);
+            Put_Line(Consumers'val(Consumer_Nb)'Image & " waiting for delivery of the vehicle. Will change their mind in 5s");
+        end select;
       end loop;
    end Consumer;
 
@@ -72,7 +59,6 @@ package body Tasks is
          delay Duration(Random_Production.Random(G)); --  symuluj produkcję
          Put_Line("Produced product " & Products'val(Product_Type_Number)'Image
 		    & " number "  & Integer'Image(Product_Number));
-         -- Accept for storage
          loop
             select
                Buffer.Take(Product_Type_Number, Product_Number, CanTake);
@@ -81,7 +67,7 @@ package body Tasks is
                   exit;
                end if;
             or
-               delay Duration(8.0);
+               delay Duration(5.0);
             end select;
             Put_Line("Cant send product to storage, waiting.");
         end loop;
@@ -95,9 +81,9 @@ package body Tasks is
       Storage: Storage_type
 	:= (0, 0, 0, 0, 0);
       Assembly_Content: array(Assembly_Type, Product_Type) of Integer
-	:= ((1, 2, 1, 4, 1),
-	    (1, 1, 1, 2, 1),
-	    (1, 2, 2, 2, 1));
+	:= ((3, 1, 2, 3, 2),
+	    (2, 2, 1, 2, 1),
+	    (2, 1, 1, 1, 2));
       Max_Assembly_Content: array(Product_Type) of Integer;
       Assembly_Number: array(Assembly_Type) of Integer
 	:= (1, 1, 1);
@@ -191,7 +177,6 @@ package body Tasks is
           CanTake := false;
           if FailedDelivers > 5 then
             In_Storage := 0;
-            CanTake := true;
             FailedDelivers := 0;
             Put_Line("Too many lost deliveries! Half of the storage was lost!");
             for W in Product_Type loop
@@ -204,7 +189,7 @@ package body Tasks is
 	 Storage_Contents;
 	 accept Deliver(Assembly: in Assembly_Type; Number: out Integer; DidDeliver: out Boolean) do
 	    if Can_Deliver(Assembly) then
-	       Put_Line("Delivered assembly " & Assemblies'val(Assembly)'Image & " number " &
+	       Put_Line("Delivered vehicle " & Assemblies'val(Assembly)'Image & " number " &
 			  Integer'Image(Assembly_Number(Assembly)));
 	       for W in Product_Type loop
               Storage(W) := Storage(W) - Assembly_Content(Assembly, W);
@@ -214,7 +199,7 @@ package body Tasks is
            Assembly_Number(Assembly) := Assembly_Number(Assembly) + 1;
            DidDeliver := true; 
 	    else
-	       Put_Line("Lacking products for assembly " & Assemblies'val(Assembly)'Image);
+	       Put_Line("Lacking products for vehicle " & Assemblies'val(Assembly)'Image);
            DIdDeliver := false;
 	    end if;
 	 end Deliver;
